@@ -330,9 +330,11 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
-// run when invoked as an entry: via bin/noir.js (argv[1]=...noir.js) or directly (dist/cli.js)
+// run when invoked as an entry: via bin/noir.js (which calls main() explicitly
+// and works through the extensionless global symlink), or directly as dist/cli.js
 const invokedAs = process.argv[1] ?? "";
-if (/(cli|noir)\.js$/i.test(invokedAs)) {
+const invokedBase = invokedAs.split(/[\\/]/).pop()?.toLowerCase() ?? "";
+if (/(cli|noir)\.js$/i.test(invokedAs) || invokedBase === "noir") {
   main(process.argv.slice(2)).then(
     (code) => process.exit(code),
     (err) => {
