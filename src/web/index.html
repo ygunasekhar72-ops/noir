@@ -80,6 +80,11 @@
       </div>
     </section>
 
+    <!-- APPS -->
+    <section id="view-apps" class="view">
+      <div id="appsList" class="list">(loading…)</div>
+    </section>
+
     <!-- SETTINGS -->
     <section id="view-settings" class="view">
       <div class="card">
@@ -112,6 +117,14 @@
   <nav id="tabs"></nav>
 
   <div id="toast" class="hidden"></div>
+  <div id="appOverlay" class="hidden">
+    <div id="appOverlayBar">
+      <button id="appBack" class="btn small">← BACK</button>
+      <span id="appOverlayTitle" class="meta"></span>
+      <button id="appReload" class="btn small">↻</button>
+    </div>
+    <iframe id="appFrame" src="about:blank" title="web app"></iframe>
+  </div>
   <div id="palette" class="hidden">
     <input id="paletteInput" class="input" placeholder="search commands" />
     <div id="paletteList"></div>

@@ -87,6 +87,7 @@ const VIEWS = [
   { id: "memory", label: "MEM", glyph: "◫" },
   { id: "skills", label: "SKILL", glyph: "◨" },
   { id: "agents", label: "SWARM", glyph: "◍" },
+  { id: "apps", label: "APPS", glyph: "▦" },
   { id: "settings", label: "CONF", glyph: "◎" },
 ];
 
@@ -105,10 +106,52 @@ function buildTabs() {
 function showView(id) {
   $$(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${id}`));
   $$("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === id));
+  if (id !== "apps") closeAppOverlay();
   if (id === "memory") loadMemory();
   if (id === "skills") loadSkills();
   if (id === "settings") loadSettings();
   if (id === "agents") loadAgents();
+  if (id === "apps") loadApps();
+}
+
+/* ------------------------------------------------------------------ web apps */
+
+async function loadApps() {
+  const box = $("#appsList");
+  box.replaceChildren(el("div", "itemSub", "(loading…)"));
+  try {
+    const st = await api("/api/state");
+    box.innerHTML = "";
+    if (!st.webapps.length) {
+      box.append(
+        el("div", "itemSub", "no web apps installed — add one to <project>/.noir/webapps/<name>/ on the NOIR machine (see examples/noir-pad in the repo)")
+      );
+      return;
+    }
+    for (const name of st.webapps) {
+      const item = el("div", "item");
+      item.append(el("div", "itemTitle", name), el("div", "itemSub", `/apps/${name}/ — served from .noir/webapps/${name}/`));
+      const row = el("div", "row");
+      const open = el("button", "btn solid", "OPEN");
+      open.onclick = () => openAppOverlay(name);
+      row.append(open);
+      item.append(row);
+      box.append(item);
+    }
+  } catch (err) {
+    box.replaceChildren(el("div", "itemSub", err.message));
+  }
+}
+
+function openAppOverlay(name) {
+  $("#appOverlayTitle").textContent = `${name} — /apps/${name}/`;
+  $("#appFrame").src = `/apps/${encodeURIComponent(name)}/`;
+  $("#appOverlay").classList.remove("hidden");
+}
+
+function closeAppOverlay() {
+  $("#appOverlay").classList.add("hidden");
+  $("#appFrame").src = "about:blank";
 }
 
 /* ------------------------------------------------------------------ chat */
@@ -490,6 +533,11 @@ function boot() {
   $("#agentRun").onclick = runSubagent;
   $("#swarmRun").onclick = runSwarm;
   $("#setSave").onclick = saveSettings;
+  $("#appBack").onclick = closeAppOverlay;
+  $("#appReload").onclick = () => {
+    const f = $("#appFrame");
+    f.src = f.src; // reload iframe
+  };
   $("#newSession").onclick = async () => {
     await api("/api/session", { method: "POST", body: JSON.stringify({ action: "new" }) });
     $("#messages").innerHTML = "";

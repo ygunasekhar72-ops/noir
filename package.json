@@ -21,6 +21,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/make-icons.mjs && node scripts/copy-assets.mjs",
     "icons": "node scripts/make-icons.mjs",
+    "pad": "node examples/noir-pad/install.mjs",
     "test": "node test/run-all.mjs",
     "start": "node bin/noir.js",
     "prepublishOnly": "npm run build && npm test"

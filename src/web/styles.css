@@ -255,7 +255,26 @@ textarea.input:focus, input.input:focus, select.input:focus { border-color: var(
 #tabs button.active { color: var(--fg); }
 #tabs button.active .glyph { background: var(--fg); color: var(--bg); padding: 0 8px; }
 
-/* ---------- toast / palette ---------- */
+/* ---------- toast / app overlay / palette ---------- */
+#appOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+#appOverlay.hidden { display: none !important; }
+#appOverlayBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px;
+  border-bottom: 1px solid var(--line);
+}
+#appOverlayBar .meta { flex: 1; }
+#appFrame { flex: 1; width: 100%; border: none; background: var(--bg); }
+
 #toast {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);

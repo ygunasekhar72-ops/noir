@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, extname, normalize } from "node:path";
+import { existsSync, readFileSync, writeFileSync, statSync, readdirSync, mkdirSync, rmSync } from "node:fs";
+import { dirname, join, extname, normalize, relative, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import type { Harness } from "../core/harness.js";
 import { NOIR_VERSION } from "../core/harness.js";
 import { PROVIDER_PRESETS } from "../core/providers/index.js";
+import { listWebApps, webAppRoot, webAppDataRoot, safeAppFile } from "../core/webapps.js";
 
 export interface ServerHandle {
   httpServer: Server;
@@ -99,7 +100,20 @@ export async function startServer(
       if (req.method === "OPTIONS") return;
 
       const url = new URL(req.url ?? "/", "http://local");
-      const path = normalize(decodeURIComponent(url.pathname)).replace(/\\/g, "/");
+      const rawPath = decodeURIComponent(url.pathname);
+
+      if (process.env.NOIR_DEBUG_ROUTES === "1") {
+        console.log(`[route] req.url=${JSON.stringify(req.url)} -> rawPath=${JSON.stringify(rawPath)}`);
+      }
+
+      // defense in depth: reject dot-segment traversal on ANY route, before
+      // path.normalize() has a chance to silently collapse it
+      if (rawPath.split("/").includes("..")) {
+        sendJson(res, 400, { error: "path traversal rejected" });
+        return;
+      }
+
+      const path = normalize(rawPath).replace(/\\/g, "/");
 
       // auth check
       if (token) {
@@ -116,6 +130,10 @@ export async function startServer(
       }
       if (req.method === "POST") {
         await handlePost(harness, path, req, res);
+        return;
+      }
+      if (req.method === "DELETE") {
+        await handleDelete(harness, path, req, res);
         return;
       }
       sendJson(res, 405, { error: "method not allowed" });
@@ -164,6 +182,7 @@ async function handleGet(harness: Harness, path: string, req: IncomingMessage, r
       skills: harness.skills.list().map((s) => ({ id: s.id, description: s.description, source: s.source })),
       agents: harness.subagents.listTypes().map((a) => ({ name: a.name, description: a.description, source: a.source })),
       panels: [...harness.panels.values()].map((p) => ({ id: p.id, title: p.title })),
+      webapps: listWebApps(harness.projectDir),
       commands: [...harness.commands.values()].map((c) => ({ name: c.name, description: c.description })),
       mcp: harness.mcp.listServers(),
       memory: { notes: harness.memory.readNotes(), facts: harness.memory.readFacts(), snapshots: harness.memory.listSnapshots() },
@@ -216,6 +235,82 @@ async function handleGet(harness: Harness, path: string, req: IncomingMessage, r
     return;
   }
 
+  // web-app data API (read/list) — /api/app-data/<name>?file=... | ?list=1
+  const appDataGet = path.match(/^\/api\/app-data\/([a-z0-9-]+)$/i);
+  if (appDataGet) {
+    const reqUrl = new URL(req.url ?? "/", "http://local");
+    const dataRoot = webAppDataRoot(harness.projectDir, appDataGet[1]);
+    if (!dataRoot) {
+      sendJson(res, 400, { error: "invalid app name" });
+      return;
+    }
+    try {
+      if (reqUrl.searchParams.get("list") === "1") {
+        const out: Array<{ file: string; size: number; updated: string }> = [];
+        const walkData = (dir: string) => {
+          if (!existsSync(dir)) return;
+          for (const f of readdirSync(dir, { withFileTypes: true })) {
+            const full = join(dir, f.name);
+            if (f.isDirectory()) walkData(full);
+            else {
+              const st = statSync(full);
+              out.push({ file: relative(dataRoot, full).split("\\").join("/"), size: st.size, updated: st.mtime.toISOString() });
+            }
+          }
+        };
+        mkdirSync(dataRoot, { recursive: true });
+        walkData(dataRoot);
+        sendJson(res, 200, { files: out.sort((a, b) => b.updated.localeCompare(a.updated)) });
+        return;
+      }
+      const file = reqUrl.searchParams.get("file") ?? "";
+      const full = safeAppFile(dataRoot, file);
+      if (!existsSync(full) || !statSync(full).isFile()) {
+        sendJson(res, 404, { error: `file not found: ${file}` });
+        return;
+      }
+      const st = statSync(full);
+      if (st.size > 512 * 1024) {
+        sendJson(res, 413, { error: "file too large for app-data reads (512KB cap)" });
+        return;
+      }
+      sendJson(res, 200, { file, content: readFileSync(full, "utf8"), updated: st.mtime.toISOString() });
+    } catch (err) {
+      sendJson(res, 400, { error: (err as Error).message });
+    }
+    return;
+  }
+
+  // project web apps — /apps/<name>/...
+  if (path === "/apps" || path.startsWith("/apps/")) {
+    const name = path.slice(6).split("/")[0] ?? "";
+    const root = webAppRoot(harness.projectDir, name);
+    if (!root || !existsSync(root)) {
+      sendJson(res, 404, { error: `web app "${name}" is not installed (expected .noir/webapps/${name}/)` });
+      return;
+    }
+    let rel = path.slice(6 + name.length) || "/";
+    if (rel.endsWith("/")) rel += "index.html";
+    const full = resolve(join(root, rel.replace(/^\/+/, "")));
+    const relCheck = relative(root, full);
+    if (relCheck.startsWith("..") || isAbsolute(relCheck)) {
+      sendJson(res, 400, { error: "invalid app path" });
+      return;
+    }
+    let target = full;
+    if (!existsSync(target) || statSync(target).isDirectory()) {
+      target = join(target, "index.html");
+    }
+    if (!existsSync(target) || !statSync(target).isFile()) {
+      sendJson(res, 404, { error: "not found in web app" });
+      return;
+    }
+    const mime = MIME[extname(target)] ?? "application/octet-stream";
+    res.writeHead(200, { "content-type": mime, "cache-control": "no-store", "x-frame-options": "SAMEORIGIN" });
+    res.end(readFileSync(target));
+    return;
+  }
+
   // static files (the PWA)
   if (req.method === "GET" || req.method === "HEAD") {
     serveStatic(path, res);
@@ -225,7 +320,8 @@ async function handleGet(harness: Harness, path: string, req: IncomingMessage, r
 
 function serveStatic(path: string, res: ServerResponse): void {
   let rel = path === "/" ? "/index.html" : path;
-  if (rel.startsWith("/api/")) {
+  if (rel.startsWith("/api/") || rel.startsWith("/apps/")) {
+    // /apps/* has its own handler; never let the SPA fallback swallow it
     sendJson(res, 404, { error: "not found" });
     return;
   }
@@ -366,6 +462,31 @@ async function handlePost(harness: Harness, path: string, req: IncomingMessage, 
     return;
   }
 
+  // web-app data API (write) — POST /api/app-data/<name> {file, content}
+  const appDataPost = path.match(/^\/api\/app-data\/([a-z0-9-]+)$/i);
+  if (appDataPost) {
+    const dataRoot = webAppDataRoot(harness.projectDir, appDataPost[1]);
+    if (!dataRoot) {
+      sendJson(res, 400, { error: "invalid app name" });
+      return;
+    }
+    try {
+      const file = String(body.file ?? "");
+      const content = String(body.content ?? "");
+      if (content.length > 512 * 1024) {
+        sendJson(res, 413, { error: "content too large (512KB cap per file)" });
+        return;
+      }
+      const full = safeAppFile(dataRoot, file);
+      mkdirSync(dirname(full), { recursive: true });
+      writeFileSync(full, content, "utf8");
+      sendJson(res, 200, { ok: true, file, bytes: content.length });
+    } catch (err) {
+      sendJson(res, 400, { error: (err as Error).message });
+    }
+    return;
+  }
+
   if (path === "/api/config") {
     // whitelist patchable keys
     const allowed: Array<string[]> = [
@@ -405,6 +526,37 @@ async function handlePost(harness: Harness, path: string, req: IncomingMessage, 
       harness.providerError = (err as Error).message;
     }
     sendJson(res, 200, { ok: true, applied, saved });
+    return;
+  }
+
+  sendJson(res, 404, { error: `unknown endpoint ${path}` });
+}
+
+/** ------------------------------------------------------------ DELETE */
+
+async function handleDelete(harness: Harness, path: string, req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? "/", "http://local");
+
+  // web-app data API (delete) — DELETE /api/app-data/<name>?file=...
+  const appDataDel = path.match(/^\/api\/app-data\/([a-z0-9-]+)$/i);
+  if (appDataDel) {
+    const dataRoot = webAppDataRoot(harness.projectDir, appDataDel[1]);
+    if (!dataRoot) {
+      sendJson(res, 400, { error: "invalid app name" });
+      return;
+    }
+    try {
+      const file = url.searchParams.get("file") ?? "";
+      const full = safeAppFile(dataRoot, file);
+      if (!existsSync(full)) {
+        sendJson(res, 404, { error: `file not found: ${file}` });
+        return;
+      }
+      rmSync(full);
+      sendJson(res, 200, { ok: true, file });
+    } catch (err) {
+      sendJson(res, 400, { error: (err as Error).message });
+    }
     return;
   }
 

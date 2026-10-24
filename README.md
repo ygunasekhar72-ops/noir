@@ -257,6 +257,21 @@ Precedence: defaults ← `~/.noir/config.json` ← `<project>/.noir/config.json`
 - **From another device on your LAN:** `noir serve --host 0.0.0.0` — a per-run access **token** is printed and required as `?token=…` or `x-noir-token` (loopback binding needs no token).
 - The app exposes every harness surface: chat with live streaming + tool chips, built-in terminal, memory workspace viewer, skills, subagent & swarm launchers, sessions, settings (provider/model/key), command palette on `/`.
 
+## Real-world project: NoirPad (runs inside the harness)
+
+`examples/noir-pad/` is a complete, useful app built **for** the harness: a markdown notes app for your phone that runs through the local app and whose notes are **plain `.md` files the NOIR agent can read and write with its standard tools**.
+
+```bash
+node examples/noir-pad/install.mjs .   # install into your project
+noir serve                             # open http://127.0.0.1:5178 on your phone
+# mobile app -> APPS tab -> noirpad -> OPEN
+```
+
+- Create/edit/delete notes, tags, full-text search, markdown preview, `.md` import/export, autosave
+- Notes live at `.noir/webapps/noirpad/data/notes/*.md` — ask the agent *"what's in my notes tagged work?"* and it reads them directly; it can write notes back that the app displays
+- Any project can ship its own web app the same way: drop a static site into `.noir/webapps/<name>/` and NOIR serves it at `/apps/<name>/` with a sandboxed per-app file API (`/api/app-data/<name>`, 512KB/file cap, traversal-rejecting)
+- A live interop demo (phone writes → agent reads → agent replies → phone sees it) ships at `examples/noir-pad/interop-demo.mjs`
+
 ## Security notes
 
 - **File tools are project-locked**: `read_file` / `write_file` / `edit_file` / `list_files` / `search_files` refuse any path that escapes the project directory (path-traversal and absolute-path attempts included) — the agent cannot be talked into touching files outside the workspace. Shell access via `run_command` remains possible by design, like a terminal.
@@ -268,10 +283,10 @@ Precedence: defaults ← `~/.noir/config.json` ← `<project>/.noir/config.json`
 ## Testing (production-grade)
 
 ```bash
-npm test   # 23 suites, 580+ assertions
+npm test   # 25 suites, 635+ assertions
 ```
 
-Coverage includes: **wire-protocol emulators** for the OpenAI / Anthropic / Gemini SSE formats (streaming, parallel tool-call assembly, multi-turn tool results, error mapping, malformed-SSE survival, CRLF framing, mid-stream aborts), the full agent loop (step limits, aborts, busy-guards, provider crashes, output caps, tool ordering, role restrictions), the compaction contract (snapshot integrity byte-for-byte, distillation parsing, provider-failure fallback), MCP over stdio **and** HTTP (handshakes, timeouts, crashes, tool registry bridge), server security (token auth, CORS, 404/400/500 handling, oversized bodies, concurrency, config-patch whitelisting), config precedence & env resolution, plugin/extension loading (CJS, npm layouts, async setups, failure isolation), memory & session persistence, subagent + swarm orchestration, the CLI surface, **TUI component rendering** via real Ink with fake streams, web-app↔server contract drift checks, PWA manifest installability, strict-monochrome CSS guard, and stress tests (200-message sessions, 60-deep trees, 600-file directories, 60 MCP tools, 8-task swarms). The suite is deterministic — three consecutive runs green.
+Coverage includes: **wire-protocol emulators** for the OpenAI / Anthropic / Gemini SSE formats (streaming, parallel tool-call assembly, multi-turn tool results, error mapping, malformed-SSE survival, CRLF framing, mid-stream aborts), the full agent loop (step limits, aborts, busy-guards, provider crashes, output caps, tool ordering, role restrictions), the compaction contract (snapshot integrity byte-for-byte, distillation parsing, provider-failure fallback), MCP over stdio **and** HTTP (handshakes, timeouts, crashes, tool registry bridge), server security (token auth, CORS, 404/400/500 handling, oversized bodies, concurrency, config-patch whitelisting, dot-segment traversal rejection), config precedence & env resolution, plugin/extension loading (CJS, npm layouts, async setups, failure isolation), memory & session persistence, subagent + swarm orchestration, **full TUI App boot test** (real app, typed input, slash commands, chat turn, shell passthrough, panel switching), web-app↔server contract drift checks, **web-app hosting + app-data sandbox + NoirPad agent-interop**, PWA manifest installability, strict-monochrome CSS guard, and stress tests (200-message sessions, 60-deep trees, 600-file directories, 60 MCP tools, 8-task swarms). The suite is deterministic — three consecutive runs green.
 
 ## Architecture (in one screen)
 

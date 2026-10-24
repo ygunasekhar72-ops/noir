@@ -27,7 +27,8 @@ const BASE_MODES: ModeDef[] = [
 
 const panelContentLoadedAt: Record<string, number> = {};
 
-const TuiApp: React.FC<{ harness: Harness; serverUrlRef: { current: string | null } }> = ({ harness, serverUrlRef }) => {
+/** Exported for app-level testing; normal users go through renderTui(). */
+export const TuiApp: React.FC<{ harness: Harness; serverUrlRef: { current: string | null } }> = ({ harness, serverUrlRef }) => {
   const { exit } = useApp();
   const [mode, setMode] = useState("chat");
   const [items, setItems] = useState<DisplayItem[]>([

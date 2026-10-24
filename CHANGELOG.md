@@ -5,6 +5,7 @@ All notable changes to NOIR are documented here.
 ## [0.1.0] — 2026-10-24
 
 ### Added
+- **Project web apps**: any static site in `<project>/.noir/webapps/<name>/` is served by `noir serve` at `/apps/<name>/`, listed in `/api/state`, browsable from the mobile app's APPS tab, and gets a sandboxed file API (`GET/POST/DELETE /api/app-data/<name>` with traversal rejection and a 512KB/file cap). Ships **NoirPad** (`examples/noir-pad/`) — a real markdown notes app whose notes are plain `.md` files the agent reads/writes with its normal tools, plus a live interop demo (`interop-demo.mjs`) and an `/apps` TUI command.
 - Terminal TUI (Ink, strict monochrome) with chat, built-in terminal, memory, skills and agents panels; tab switching, input history, abort, double-ctrl+c exit.
 - Mobile PWA app (`noir serve`) — chat with live streaming + tool chips, terminal, memory workspace viewer, skills, subagent/swarm launchers, sessions, settings, command palette; installable via "Add to Home screen" with service-worker shell caching.
 - 18 built-in tools: read/write/edit files, glob, grep, shell, web_search, web_fetch, save/read memory, snapshots, task board, skills, subagents, swarm, MCP bridge.

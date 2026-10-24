@@ -24,9 +24,13 @@ function assertInsideProject(cwd: string, resolved: string): void {
   }
 }
 
-const IGNORE_DIRS = new Set(["node_modules", ".git", "dist", ".noir", "__pycache__", ".cache"]);
+const IGNORE_DIRS = new Set(["node_modules", ".git", "dist", "__pycache__", ".cache"]);
 
-function walk(dir: string, opts: { includeHidden: boolean; maxEntries: number; out: string[] }): void {
+/** Inside .noir/, only the human/agent-facing data is searchable (skip bulky internals). */
+const NOIR_ALLOWED = new Set(["memory", "webapps"]);
+const NOIR_SKIP = new Set(["sessions", "swarm", "tmp", "logs", "agents"]);
+
+function walk(dir: string, opts: { includeHidden: boolean; maxEntries: number; out: string[] }, noirLevel = 0): void {
   if (opts.out.length >= opts.maxEntries) return;
   let entries: import("node:fs").Dirent[] = [];
   try {
@@ -36,11 +40,15 @@ function walk(dir: string, opts: { includeHidden: boolean; maxEntries: number; o
   }
   for (const e of entries) {
     if (opts.out.length >= opts.maxEntries) return;
-    if (!opts.includeHidden && e.name.startsWith(".")) continue;
+    const isNoirDir = e.name === ".noir" && noirLevel === 0;
+    // hide dotfiles, but always descend into the .noir subtree (memory + webapps
+    // are agent-facing data; internals like sessions/ stay excluded below)
+    if (e.name.startsWith(".") && !isNoirDir && noirLevel === 0 && !opts.includeHidden) continue;
     const full = join(dir, e.name);
     if (e.isDirectory()) {
-      if (IGNORE_DIRS.has(e.name)) continue;
-      walk(full, opts);
+      if (noirLevel === 1 && (NOIR_SKIP.has(e.name) || !NOIR_ALLOWED.has(e.name))) continue;
+      if (IGNORE_DIRS.has(e.name) && noirLevel === 0) continue;
+      walk(full, opts, e.name === ".noir" ? 1 : noirLevel > 0 ? noirLevel + 1 : 0);
     } else if (e.isFile()) {
       opts.out.push(full);
     }

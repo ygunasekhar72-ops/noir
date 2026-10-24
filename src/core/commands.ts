@@ -1,6 +1,7 @@
 import type { Harness, CommandDef } from "./harness.js";
 import { PROVIDER_PRESETS } from "./providers/index.js";
 import { NOIR_VERSION } from "./harness.js";
+import { listWebApps } from "./webapps.js";
 
 /** Core commands, registered by the harness and used by TUI, mobile web app, and CLI. */
 export function coreCommands(): CommandDef[] {
@@ -194,6 +195,17 @@ export function coreCommands(): CommandDef[] {
           lines.push("shell: failed");
         }
         return lines.join("\n");
+      },
+    },
+    {
+      name: "apps",
+      description: "List installed project web apps",
+      run: (_args, h) => {
+        const apps = listWebApps(h.projectDir);
+        if (!apps.length) {
+          return `no web apps installed. Drop one into .noir/webapps/<name>/ (see examples/noir-pad), then open http://127.0.0.1:${h.config.server.port}/apps/<name>/ in the mobile app.`;
+        }
+        return apps.map((a) => `  ${a} — http://127.0.0.1:${h.config.server.port}/apps/${a}/`).join("\n");
       },
     },
     {

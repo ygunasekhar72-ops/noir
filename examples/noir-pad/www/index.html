@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <title>NoirPad — notes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- LIST VIEW -->
+  <div id="listView" class="screen active">
+    <header class="topbar">
+      <div class="brand">NoirPad<span class="dot">▪</span></div>
+      <button id="btnImport" class="btn small" title="import .md">IMPORT</button>
+      <input id="fileImport" type="file" accept=".md,.markdown,.txt" multiple hidden />
+    </header>
+    <div class="searchwrap">
+      <input id="search" class="input" placeholder="search notes…" autocomplete="off" />
+    </div>
+    <main id="noteList" class="notes"></main>
+    <button id="btnNew" class="fab" aria-label="new note">＋ NEW</button>
+    <footer class="statusbar">
+      <span id="storeInfo" class="dim">loading…</span>
+      <span class="dim">notes live in .noir/webapps/noirpad/data — the NOIR agent can read them</span>
+    </footer>
+  </div>
+
+  <!-- EDITOR VIEW -->
+  <div id="editorView" class="screen">
+    <header class="topbar">
+      <button id="btnBack" class="btn small">← BACK</button>
+      <div class="brand small-brand">EDIT</div>
+      <button id="btnPreview" class="btn small">PREVIEW</button>
+      <button id="btnExport" class="btn small" title="download .md">.MD</button>
+      <button id="btnDelete" class="btn small danger">DEL</button>
+    </header>
+    <main class="editor">
+      <input id="noteTitle" class="input title" placeholder="title" autocomplete="off" />
+      <input id="noteTags" class="input" placeholder="tags (comma separated)" autocomplete="off" />
+      <textarea id="noteBody" class="input body" placeholder="write markdown here…" spellcheck="false"></textarea>
+      <div id="preview" class="preview hidden"></div>
+    </main>
+    <footer class="statusbar editorbar">
+      <span id="saveState" class="dim">—</span>
+      <button id="btnSave" class="btn solid small">SAVE</button>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
