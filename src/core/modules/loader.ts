@@ -81,7 +81,7 @@ export class ModuleLoader {
               target = join(full, pkg.main ?? "index.js");
             }
             if (!target || !existsSync(target)) {
-              for (const cand of ["index.js", "index.mjs", "plugin.js", "plugin.mjs", "extension.js", "extension.mjs", `${this.kind}.js`, `${this.kind}.mjs`]) {
+              for (const cand of ["index.js", "index.mjs", "index.cjs", "plugin.js", "plugin.mjs", "plugin.cjs", "extension.js", "extension.mjs", "extension.cjs", `${this.kind}.js`, `${this.kind}.mjs`, `${this.kind}.cjs`]) {
                 if (existsSync(join(full, cand))) {
                   target = join(full, cand);
                   break;
@@ -129,13 +129,12 @@ export class ModuleLoader {
     };
   }
 
-  /** Call setup(ctx) on a module if present. */
-  setup(mod: LoadedModule, ctx: HostContext["harness"]): void {
+  /** Call setup(ctx) on a module if present. Async setups are awaited. */
+  async setup(mod: LoadedModule, ctx: HostContext["harness"]): Promise<void> {
     const m = mod.module as any;
     if (typeof m.setup === "function") {
       try {
-        const r = m.setup(ctx);
-        if (r && typeof (r as Promise<void>).then === "function") (r as Promise<void>).catch((e) => this.logger.error(`${mod.name} async setup failed: ${e}`));
+        await m.setup(ctx);
       } catch (err) {
         mod.error = (err as Error).message;
         this.logger.error(`${mod.kind} "${mod.name}" setup failed: ${(err as Error).message}`);

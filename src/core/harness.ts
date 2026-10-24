@@ -192,7 +192,7 @@ export class Harness {
         const loader = new ModuleLoader(this.projectDir, kind, this.logger);
         const mods = await loader.loadAll();
         for (const mod of mods) {
-          loader.setup(mod, host);
+          await loader.setup(mod, host);
           const contributions = (mod.module as { contributions?: { panels?: unknown[]; commands?: unknown[] } }).contributions;
           if (contributions) {
             const modAny = mod.module as Record<string, any>;
@@ -276,6 +276,11 @@ export class Harness {
   async *chat(input: string): AsyncGenerator<AgentEvent, void, unknown> {
     if (this.busy) {
       yield { type: "note", text: "A turn is already running — abort it first." };
+      yield { type: "done", reason: "end" };
+      return;
+    }
+    if (!input.trim()) {
+      yield { type: "note", text: "empty input — nothing to send" };
       yield { type: "done", reason: "end" };
       return;
     }

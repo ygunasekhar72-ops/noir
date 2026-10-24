@@ -9,6 +9,8 @@
 
 # NOIR — the monochrome agent harness for terminal & mobile
 
+[![CI](https://github.com/ygunasekhar72-ops/noir/actions/workflows/ci.yml/badge.svg)](https://github.com/ygunasekhar72-ops/noir/actions/workflows/ci.yml)
+
 NOIR is a **coding/agent harness in the spirit of OpenCode and Claude Code**, built to run equally well in your **terminal** and on your **Android phone** — with a strict **black & white UI**, and a **memory workspace that is saved before compaction** so long projects never lose context.
 
 It runs on plain **Node.js ≥ 18** — no native modules — so it installs and runs natively in **Termux** on Android, and on any desktop.
@@ -257,9 +259,19 @@ Precedence: defaults ← `~/.noir/config.json` ← `<project>/.noir/config.json`
 
 ## Security notes
 
-- Shell commands and file tools are scoped to the project directory; every tool run is event-logged.
+- **File tools are project-locked**: `read_file` / `write_file` / `edit_file` / `list_files` / `search_files` refuse any path that escapes the project directory (path-traversal and absolute-path attempts included) — the agent cannot be talked into touching files outside the workspace. Shell access via `run_command` remains possible by design, like a terminal.
+- Tool results are hard-capped (`toolOutputLimit`, default 60k chars) and `read_file` truncates over-long lines, so one huge output can never blow the context.
+- Every tool run is event-logged; malformed provider SSE, crashed MCP servers, and network failures degrade gracefully instead of crashing turns.
 - API keys are masked in every API response; project configs keep keys out of your global dotfiles.
-- The app binds to 127.0.0.1 by default; non-loopback binds require a token.
+- The app binds to 127.0.0.1 by default; non-loopback binds require a per-run access token.
+
+## Testing (production-grade)
+
+```bash
+npm test   # 23 suites, 580+ assertions
+```
+
+Coverage includes: **wire-protocol emulators** for the OpenAI / Anthropic / Gemini SSE formats (streaming, parallel tool-call assembly, multi-turn tool results, error mapping, malformed-SSE survival, CRLF framing, mid-stream aborts), the full agent loop (step limits, aborts, busy-guards, provider crashes, output caps, tool ordering, role restrictions), the compaction contract (snapshot integrity byte-for-byte, distillation parsing, provider-failure fallback), MCP over stdio **and** HTTP (handshakes, timeouts, crashes, tool registry bridge), server security (token auth, CORS, 404/400/500 handling, oversized bodies, concurrency, config-patch whitelisting), config precedence & env resolution, plugin/extension loading (CJS, npm layouts, async setups, failure isolation), memory & session persistence, subagent + swarm orchestration, the CLI surface, **TUI component rendering** via real Ink with fake streams, web-app↔server contract drift checks, PWA manifest installability, strict-monochrome CSS guard, and stress tests (200-message sessions, 60-deep trees, 600-file directories, 60 MCP tools, 8-task swarms). The suite is deterministic — three consecutive runs green.
 
 ## Architecture (in one screen)
 

@@ -88,6 +88,14 @@ export async function* sseLines(
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
+      // normalize CRLF -> LF, but hold back a trailing \r that may pair with
+      // the next chunk's \n (chunk boundaries can split a \r\n pair)
+      let pending = "";
+      if (buffer.endsWith("\r")) {
+        pending = "\r";
+        buffer = buffer.slice(0, -1);
+      }
+      buffer = buffer.replace(/\r\n/g, "\n") + pending;
       let idx: number;
       while ((idx = buffer.indexOf("\n\n")) !== -1) {
         const chunk = buffer.slice(0, idx);
@@ -95,7 +103,11 @@ export async function* sseLines(
         const data = sseChunkData(chunk);
         if (data === null) continue;
         if (data === "DONE") return "DONE";
-        yield JSON.parse(data) as Record<string, unknown>;
+        try {
+          yield JSON.parse(data) as Record<string, unknown>;
+        } catch {
+          // malformed data line — skip it, keep the stream alive
+        }
       }
     }
     const tail = sseChunkData(buffer);

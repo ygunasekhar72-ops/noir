@@ -391,6 +391,9 @@ async function handlePost(harness: Harness, path: string, req: IncomingMessage, 
       harness.config.apiKey = String(patch.apiKey);
       applied++;
     }
+    if (typeof patch.model === "string" && patch.model) {
+      harness.setModel(String(patch.model)); // sync the live model, not just config
+    }
     const target = body.target === "global" ? "global" : "project";
     const saved = harness.saveConfig(target);
     // re-init provider with new config

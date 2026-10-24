@@ -1,12 +1,27 @@
 import { existsSync, readFileSync, writeFileSync, statSync, readdirSync } from "node:fs";
-import { join, resolve, dirname, relative, sep } from "node:path";
+import { join, resolve, dirname, relative, sep, isAbsolute } from "node:path";
 import { mkdirSync } from "node:fs";
 import { errResult, schema, textResult, type Tool } from "./types.js";
 
-/** resolve against tool cwd + project dir */
-function resolvePath(cwd: string, p: string): string {
-  if (!p) throw new Error("path is required");
+/** resolve against tool cwd + project dir; rejects missing/invalid paths outright */
+function resolvePath(cwd: string, p: unknown): string {
+  if (typeof p !== "string" || p.trim() === "") throw new Error("path is required (non-empty string)");
   return resolve(cwd, p);
+}
+
+/**
+ * Project boundary guard: file tools never touch anything outside the project
+ * directory. Defense-in-depth for the mobile app server (the AI cannot be
+ * social-engineered into reading/writing files outside the workspace).
+ * Shell access remains possible via run_command — by design, like a terminal.
+ */
+function assertInsideProject(cwd: string, resolved: string): void {
+  const rel = relative(cwd, resolved);
+  if (rel.startsWith("..") || isAbsolute(rel)) {
+    throw new Error(
+      `path escapes the project directory (${resolved}). File tools are locked to the project root — use run_command if you truly need a file outside it.`
+    );
+  }
 }
 
 const IGNORE_DIRS = new Set(["node_modules", ".git", "dist", ".noir", "__pycache__", ".cache"]);
@@ -32,17 +47,21 @@ function walk(dir: string, opts: { includeHidden: boolean; maxEntries: number; o
   }
 }
 
-/** glob -> RegExp (supports **, *, ?, {a,b}) */
+/** glob -> RegExp (supports **, *, ?, {a,b}; each alternative is fully converted) */
 export function globToRegExp(glob: string): RegExp {
+  const braceMatch = glob.match(/\{([^{}]+)\}/);
+  if (braceMatch && braceMatch.index !== undefined) {
+    const pre = glob.slice(0, braceMatch.index);
+    const post = glob.slice(braceMatch.index + braceMatch[0].length);
+    const alts = braceMatch[1]
+      .split(",")
+      .map((a) => a.trim())
+      .filter((a) => a.length > 0)
+      .map((a) => globToRegExp(pre + a + post).source);
+    if (alts.length > 1) return new RegExp(`(?:${alts.join("|")})`, "i");
+  }
   let re = "";
   let i = 0;
-  // brace expansion for simple {a,b}
-  const braceMatch = glob.match(/\{([^{}]+)\}/);
-  if (braceMatch) {
-    const alternatives = braceMatch[1].split(",").map((a) => a.trim());
-    const replaced = glob.replace(braceMatch[0], `(${alternatives.join("|")})`);
-    return globToRegExp(replaced);
-  }
   while (i < glob.length) {
     const c = glob[i];
     if (c === "*") {
@@ -91,16 +110,21 @@ export const fsTools: Tool[] = [
     }, ["path"]),
     readOnly: true,
     run(args, ctx) {
-      const path = resolvePath(ctx.cwd, String(args.path));
+      const path = resolvePath(ctx.cwd, args.path);
+      assertInsideProject(ctx.cwd, path);
       if (!existsSync(path) || !statSync(path).isFile()) return errResult(`File not found: ${path}`);
       const raw = readFileSync(path, "utf8");
       if (looksBinary(path, raw)) return errResult(`Refusing to read binary file: ${path}`);
       const limit = Math.min(Number(args.limit ?? 2000), 5000);
       const offset = Math.max(Number(args.offset ?? 1), 1);
-      const body = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
-      const allLines = body === "" ? [] : body.split(/\r?\n/);
+      const normalized = raw.replace(/\r\n/g, "\n");
+      const body = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized;
+      const allLines = body === "" ? [] : body.split("\n");
+      const MAX_LINE = 2000;
       const startIdx = offset - 1;
-      const slice = allLines.slice(startIdx, startIdx + limit);
+      const slice = allLines.slice(startIdx, startIdx + limit).map((l) =>
+        l.length > MAX_LINE ? l.slice(0, MAX_LINE) + `…(line truncated, ${l.length} chars total)` : l
+      );
       const width = String(startIdx + slice.length).length;
       const numbered = slice.map((l, i) => `${String(startIdx + i + 1).padStart(width)}| ${l}`).join("\n");
       const total = allLines.length;
@@ -116,7 +140,8 @@ export const fsTools: Tool[] = [
       content: schema.str("Full file content to write"),
     }, ["path", "content"]),
     run(args, ctx) {
-      const path = resolvePath(ctx.cwd, String(args.path));
+      const path = resolvePath(ctx.cwd, args.path);
+      assertInsideProject(ctx.cwd, path);
       mkdirSync(dirname(path), { recursive: true });
       const content = String(args.content ?? "");
       writeFileSync(path, content, "utf8");
@@ -134,7 +159,8 @@ export const fsTools: Tool[] = [
       replaceAll: schema.bool("Replace every occurrence (default false)"),
     }, ["path", "oldString", "newString"]),
     run(args, ctx) {
-      const path = resolvePath(ctx.cwd, String(args.path));
+      const path = resolvePath(ctx.cwd, args.path);
+      assertInsideProject(ctx.cwd, path);
       if (!existsSync(path)) return errResult(`File not found: ${path}`);
       const raw = readFileSync(path, "utf8");
       const oldStr = String(args.oldString ?? "");
@@ -159,7 +185,8 @@ export const fsTools: Tool[] = [
     }, ["pattern"]),
     readOnly: true,
     run(args, ctx) {
-      const base = args.path ? resolvePath(ctx.cwd, String(args.path)) : ctx.cwd;
+      const base = args.path ? resolvePath(ctx.cwd, args.path) : ctx.cwd;
+      assertInsideProject(ctx.cwd, base);
       if (!existsSync(base)) return errResult(`Directory not found: ${base}`);
       const files: string[] = [];
       walk(base, { includeHidden: false, maxEntries: 4000, out: files });
@@ -188,7 +215,8 @@ export const fsTools: Tool[] = [
     }, ["pattern"]),
     readOnly: true,
     run(args, ctx) {
-      const base = args.path ? resolvePath(ctx.cwd, String(args.path)) : ctx.cwd;
+      const base = args.path ? resolvePath(ctx.cwd, args.path) : ctx.cwd;
+      assertInsideProject(ctx.cwd, base);
       if (!existsSync(base)) return errResult(`Directory not found: ${base}`);
       const rawPat = String(args.pattern);
       let re: RegExp;

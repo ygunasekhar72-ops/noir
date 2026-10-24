@@ -200,6 +200,11 @@ export class Agent {
         } else {
           result = await registry.execute(tc.name, tc.arguments ?? {}, ctx);
         }
+        // cap tool results so one huge output cannot blow the context
+        const limit = config.toolOutputLimit ?? 60000;
+        if (result.content.length > limit) {
+          result = { ...result, content: result.content.slice(0, limit) + `\n…(truncated at ${limit} chars — page with offset/limit or narrow your query)` };
+        }
         const toolMsg: Message = { role: "tool", toolCallId: tc.id, name: tc.name, content: result.content, ...(result.isError ? { isError: true } : {}) };
         session.push(toolMsg);
         session.save();

@@ -16,6 +16,9 @@ interface CliArgs {
   flags: Record<string, string | boolean>;
 }
 
+/** flags that are always boolean (never consume the next argv as their value) */
+const BOOLEAN_FLAGS = new Set(["json", "open", "quiet", "q", "version", "v", "help", "h", "tui"]);
+
 function parseArgs(argv: string[]): CliArgs {
   const positionals: string[] = [];
   const flags: Record<string, string | boolean> = {};
@@ -29,7 +32,7 @@ function parseArgs(argv: string[]): CliArgs {
     if (a.startsWith("-") && a !== "-" && !/^-?\d+(\.\d+)?$/.test(a)) {
       const key = a.replace(/^-+/, "");
       const next = argv[i + 1];
-      if (next !== undefined && !next.startsWith("-")) {
+      if (!BOOLEAN_FLAGS.has(key) && next !== undefined && !next.startsWith("-")) {
         flags[key] = next;
         i += 2;
       } else {

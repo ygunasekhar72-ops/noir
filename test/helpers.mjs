@@ -2,6 +2,12 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+/** global assertion counter — the runner reports totals */
+let assertionCount = 0;
+export function assertionCountSoFar() {
+  return assertionCount;
+}
+
 /** Create a throwaway project dir. */
 export function tmpProject(name = "noir-test") {
   const dir = mkdtempSync(join(tmpdir(), `${name}-`));
@@ -10,13 +16,43 @@ export function tmpProject(name = "noir-test") {
 }
 
 export function assert(cond, msg) {
+  assertionCount++;
   if (!cond) throw new Error(`assert failed: ${msg}`);
 }
 
 export function assertEq(actual, expected, msg) {
+  assertionCount++;
   if (actual !== expected) {
     throw new Error(`assert failed: ${msg} — expected ${JSON.stringify(expected)?.slice(0, 200)}, got ${JSON.stringify(actual)?.slice(0, 200)}`);
   }
+}
+
+export function assertThrows(fn, msg, needle) {
+  assertionCount++;
+  let threw = false;
+  try {
+    fn();
+  } catch (err) {
+    threw = true;
+    if (needle && !String(err.message).includes(needle)) {
+      throw new Error(`assert failed: ${msg} — threw but message missing "${needle}": ${err.message}`);
+    }
+  }
+  if (!threw) throw new Error(`assert failed: ${msg} — expected a throw`);
+}
+
+export async function assertRejects(promise, msg, needle) {
+  assertionCount++;
+  let threw = false;
+  try {
+    await promise;
+  } catch (err) {
+    threw = true;
+    if (needle && !String(err.message).includes(needle)) {
+      throw new Error(`assert failed: ${msg} — rejected but message missing "${needle}": ${err.message}`);
+    }
+  }
+  if (!threw) throw new Error(`assert failed: ${msg} — expected a rejection`);
 }
 
 export async function makeHarness(projectDir, opts = {}) {

@@ -227,12 +227,21 @@ export class McpHttpClient {
     };
     if (this.sessionId) headers["mcp-session-id"] = this.sessionId;
 
-    const res = await fetch(this.cfg.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    let res: Response;
+    try {
+      res = await fetch(this.cfg.url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      const e = err as Error;
+      if (e.name === "TimeoutError" || /timeout/i.test(e.message)) {
+        throw new Error(`MCP "${this.name}" request "${method}" timed out after ${timeoutMs}ms`);
+      }
+      throw err;
+    }
     const sid = res.headers.get("mcp-session-id");
     if (sid) this.sessionId = sid;
     if (!res.ok) throw new Error(`MCP "${this.name}" http ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`);

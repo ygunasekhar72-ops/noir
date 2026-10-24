@@ -10,11 +10,20 @@
   "bin": {
     "noir": "bin/noir.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ygunasekhar72-ops/noir.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ygunasekhar72-ops/noir/issues"
+  },
+  "homepage": "https://github.com/ygunasekhar72-ops/noir#readme",
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/make-icons.mjs && node scripts/copy-assets.mjs",
     "icons": "node scripts/make-icons.mjs",
     "test": "node test/run-all.mjs",
-    "start": "node bin/noir.js"
+    "start": "node bin/noir.js",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "ink": "^5.2.0",
