@@ -44,7 +44,7 @@ It runs on plain **Node.js ≥ 18** — no native modules — so it installs and
 
 ```bash
 pkg update && pkg install nodejs-lts git -y
-git clone <this-repo> ~/noir
+git clone https://github.com/ygunasekhar72-ops/noir.git ~/noir
 cd ~/noir
 npm install
 npm run build
