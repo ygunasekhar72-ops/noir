@@ -111,6 +111,19 @@ export async function test() {
   assert(existsSync(join(home, "config.json")), "global save");
   writeFileSync(join(home, "config.json"), "{}");
 
+  /* ---- 13. REGRESSION: env must never pollute DEFAULT_CONFIG ---- */
+  const before = JSON.stringify(DEFAULT_CONFIG);
+  await loadIn(proj, { NOIR_MODEL: "pollution-check", NOIR_PROVIDER: "mock", NOIR_COMPACT_AT_TOKENS: "777" });
+  assertEq(JSON.stringify(DEFAULT_CONFIG), before, "DEFAULT_CONFIG untouched by env");
+  rmSync(join(proj, ".noir", "config.json"), { force: true }); // remove saved project config
+  writeFileSync(join(home, "config.json"), "{}"); // and global
+  r = await loadIn(proj, {});
+  assertEq(r.config.model, "gpt-4o-mini", "second load unaffected by earlier env");
+  assertEq(r.config.compactAtTokens, 60000, "second load threshold unaffected");
+  r = await loadIn(proj, { NOIR_MODEL: "again" });
+  r = await loadIn(proj, {});
+  assertEq(r.config.model, "gpt-4o-mini", "repeated loads stay clean");
+
   // restore env
   for (const k of Object.keys(process.env)) if (k.startsWith("NOIR_") || /_API_KEY$/.test(k)) delete process.env[k];
   Object.assign(process.env, savedEnv);

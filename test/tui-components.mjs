@@ -43,6 +43,11 @@ async function renderTo(element, ms = 80) {
   const stdout = makeStdout();
   const stdin = makeStdin();
   const instance = render(element, { stdout, stdin, exitOnCtrlC: false, patchConsole: false });
+  // wait until ink actually flushed a frame (CI runners can be slow to first paint)
+  const t0 = Date.now();
+  while (stripAnsi(stdout.output).trim().length === 0 && Date.now() - t0 < 4000) {
+    await new Promise((r) => setTimeout(r, 40));
+  }
   await new Promise((r) => setTimeout(r, ms));
   const frame = stripAnsi(stdout.output);
   instance.unmount();

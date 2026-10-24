@@ -195,7 +195,10 @@ export function loadConfig(projectDir: string): LoadedConfig {
   const g = readJsonIfExists(globalPath);
   const p = existsSync(projectPath) ? readJsonIfExists(projectPath) : null;
 
-  let config: Config = DEFAULT_CONFIG;
+  // deep-clone the defaults: env overrides below must NEVER pollute the
+  // module-level DEFAULT_CONFIG (previously the first loadConfig call with
+  // NOIR_MODEL set permanently poisoned the in-memory defaults)
+  let config: Config = structuredClone(DEFAULT_CONFIG);
   if (g) {
     config = deepMerge(config, g as Partial<Config>);
     sources.push(globalPath);
