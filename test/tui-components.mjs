@@ -5,7 +5,13 @@ import { assert } from "./helpers.mjs";
  * TUI component render tests — render REAL ink components with a fake stdout,
  * strip ANSI, and assert on the visible frame. Catches JSX crashes, broken
  * hooks and layout regressions without needing a TTY.
+ *
+ * NOTE: ink skips rendering when it detects `CI=true` or `TERM=dumb`
+ * (intended for clean CI logs). These tests render into a fake stream, so we
+ * neutralize both markers BEFORE ink is ever imported.
  */
+delete process.env.CI;
+delete process.env.TERM;
 
 function makeStdout() {
   const s = new Writable({
