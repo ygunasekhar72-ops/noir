@@ -51,7 +51,7 @@ export async function test() {
   });
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const waitFor = async (needle, timeout = 8000) => {
+  const waitFor = async (needle, timeout = 20000) => {
     const t0 = Date.now();
     while (!stripAnsi(stdout.output).includes(needle)) {
       if (Date.now() - t0 > timeout) return false;
@@ -61,20 +61,29 @@ export async function test() {
   };
 
   // let the app fully boot and attach its input readers (like a human would)
-  await wait(500);
+  await wait(750);
   const frame1 = stripAnsi(stdout.output);
   assert(frame1.includes("NOIR"), "boot: brand rendered");
   assert(frame1.includes("mock-model"), "boot: header shows model");
   assert(frame1.includes("CHAT"), "boot: footer tabs rendered");
   assert(frame1.includes("task, /command or !shell"), "boot: composer placeholder");
 
+  // PROVE the stdin -> composer pipeline is live before driving it: type one
+  // char and wait for it to echo, then backspace it. On slow CI runners the
+  // composer can take longer than any fixed delay to become ready — this
+  // converts blind typing into a verified precondition.
+  stdin.write("x");
+  assert(await waitFor("» x", 20000), "input pipeline live (char echoed in composer)");
+  stdin.write("\x7f"); // backspace
+  await wait(150);
+
   // type like a keyboard: chars separately, then enter
   const type = async (text) => {
     for (const ch of text) {
       stdin.write(ch);
-      await wait(12);
+      await wait(25);
     }
-    await wait(80);
+    await wait(150);
     stdin.write("\r");
   };
 
