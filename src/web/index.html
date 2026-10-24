@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <title>NOIR — agent harness</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header id="hdr">
+    <div id="brand">NOIR<span class="dot">▪</span></div>
+    <div id="hdrMeta" class="meta">connecting…</div>
+    <button id="btnAbort" class="btn small hidden" aria-label="abort">STOP</button>
+    <button id="btnCompact" class="btn small" aria-label="compact">⇲</button>
+  </header>
+
+  <main id="main">
+    <!-- CHAT -->
+    <section id="view-chat" class="view active">
+      <div id="messages"></div>
+      <div id="composer">
+        <textarea id="input" rows="1" placeholder="task, /command or !shell — enter to send"></textarea>
+        <button id="btnSend" class="btn solid" aria-label="send">SEND</button>
+      </div>
+    </section>
+
+    <!-- TERMINAL -->
+    <section id="view-terminal" class="view">
+      <pre id="termOut" class="term">NOIR built-in terminal — commands run in the project directory.</pre>
+      <div id="termComposer">
+        <input id="termInput" placeholder="shell command" autocapitalize="off" autocomplete="off" spellcheck="false" />
+        <button id="termRun" class="btn solid">RUN</button>
+      </div>
+    </section>
+
+    <!-- MEMORY -->
+    <section id="view-memory" class="view">
+      <div class="card">
+        <div class="cardTitle">PROJECT NOTES <span class="dim">notes.md — survives compaction</span></div>
+        <pre id="memNotes" class="pre">(loading…)</pre>
+      </div>
+      <div class="card">
+        <div class="cardTitle">FACTS</div>
+        <pre id="memFacts" class="pre">(loading…)</pre>
+      </div>
+      <div class="card">
+        <div class="cardTitle">SNAPSHOTS <span class="dim">full transcripts saved before compaction</span></div>
+        <div id="memSnapshots" class="list">(loading…)</div>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section id="view-skills" class="view">
+      <div id="skillsList" class="list">(loading…)</div>
+    </section>
+
+    <!-- AGENTS -->
+    <section id="view-agents" class="view">
+      <div class="card">
+        <div class="cardTitle">SUBAGENT</div>
+        <div class="row">
+          <select id="agentType" class="input"></select>
+        </div>
+        <textarea id="agentTask" rows="3" class="input" placeholder="task for the subagent"></textarea>
+        <button id="agentRun" class="btn solid">RUN SUBAGENT</button>
+        <pre id="agentOut" class="pre hidden"></pre>
+      </div>
+      <div class="card">
+        <div class="cardTitle">SWARM <span class="dim">multi-agent: plan → parallel workers → synthesis</span></div>
+        <textarea id="swarmObjective" rows="3" class="input" placeholder="objective for the swarm"></textarea>
+        <button id="swarmRun" class="btn solid">UNLEASH SWARM</button>
+        <pre id="swarmOut" class="pre hidden"></pre>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <div class="card">
+        <div class="cardTitle">AI PROVIDER</div>
+        <div class="row">
+          <select id="setProvider" class="input"></select>
+          <input id="setModel" class="input" placeholder="model" />
+        </div>
+        <div class="row">
+          <input id="setApiKey" class="input" type="password" placeholder="API key (stored in project config)" />
+          <button id="setSave" class="btn solid">SAVE</button>
+        </div>
+        <div id="setInfo" class="pre dim"></div>
+      </div>
+      <div class="card">
+        <div class="cardTitle">SESSIONS</div>
+        <div class="row">
+          <button id="newSession" class="btn">NEW</button>
+          <button id="refreshSessions" class="btn">REFRESH</button>
+        </div>
+        <div id="sessionsList" class="list">(loading…)</div>
+      </div>
+      <div class="card">
+        <div class="cardTitle">REGISTRIES</div>
+        <div id="registryInfo" class="pre dim">(loading…)</div>
+      </div>
+    </section>
+  </main>
+
+  <nav id="tabs"></nav>
+
+  <div id="toast" class="hidden"></div>
+  <div id="palette" class="hidden">
+    <input id="paletteInput" class="input" placeholder="search commands" />
+    <div id="paletteList"></div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

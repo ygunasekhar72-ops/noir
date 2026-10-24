@@ -1,0 +1,46 @@
+{
+  "name": "noir-harness",
+  "version": "0.1.0",
+  "description": "NOIR — monochrome AI agent harness for terminal & mobile (Termux/Android). Plugins, MCP, skills, extensions, web search, subagents, multi-agent swarms, pre-compaction memory workspace.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "bin": {
+    "noir": "bin/noir.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/make-icons.mjs && node scripts/copy-assets.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "test": "node test/run-all.mjs",
+    "start": "node bin/noir.js"
+  },
+  "dependencies": {
+    "ink": "^5.2.0",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.0",
+    "typescript": "^5.5.0"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "skills",
+    "README.md"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "harness",
+    "mcp",
+    "termux",
+    "android",
+    "cli",
+    "tui",
+    "pwa",
+    "subagents"
+  ]
+}
