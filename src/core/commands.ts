@@ -176,6 +176,15 @@ export function coreCommands(): CommandDef[] {
       },
     },
     {
+      name: "selftest",
+      description: "Verify this installation end to end (no tokens spent)",
+      run: async (_args, h) => {
+        const { runSelfTest, formatSelftest } = await import("./selftest.js");
+        const report = await runSelfTest(h);
+        return formatSelftest(report);
+      },
+    },
+    {
       name: "doctor",
       description: "Environment check",
       run: async (_args, h) => {

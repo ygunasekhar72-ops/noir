@@ -59,6 +59,7 @@ commands:
   noir chat                  plain REPL (lightweight terminal)
   noir swarm "<objective>"   multi-agent swarm, headless
   noir agent <type> "<task>" run one subagent headless
+  noir selftest              verify the installation end to end
   noir sessions              list saved sessions
   noir skills | plugins | extensions | mcp | tools   registries
   noir memory [show|snapshots]
@@ -301,6 +302,14 @@ export async function main(argv: string[]): Promise<number> {
       const cmd = h.commands.get("doctor");
       process.stdout.write((cmd ? await cmd.run([], h) : "missing") + "\n");
       return h.provider ? 0 : 2;
+    }
+    case "selftest": {
+      const h = await buildHarness(flags);
+      const { runSelfTest, formatSelftest } = await import("./core/selftest.js");
+      const report = await runSelfTest(h);
+      process.stdout.write(formatSelftest(report) + "\n");
+      await h.shutdown();
+      return report.exitCode;
     }
     case "init": {
       const { writeSampleConfig } = await import("./core/config.js");

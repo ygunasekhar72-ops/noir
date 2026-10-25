@@ -19,6 +19,11 @@ jobs:
             node: 18
           - os: windows-latest
             node: 22
+        # arm64 Linux — the closest free approximation of Android/Termux
+        # (aarch64), where the global-symlink entry bug was found in the field
+        include:
+          - os: ubuntu-24.04-arm
+            node: 22
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +37,11 @@ jobs:
         run: npm run build
       - name: Test
         run: npm test
+        env:
+          NOIR_PROVIDER: mock
+          NOIR_MODEL: mock
+      - name: Selftest
+        run: node bin/noir.js selftest
         env:
           NOIR_PROVIDER: mock
           NOIR_MODEL: mock

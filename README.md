@@ -40,7 +40,13 @@ It runs on plain **Node.js ≥ 18** — no native modules — so it installs and
 
 ## Install
 
-### Android (Termux) — the full experience
+### Android (Termux) — one command (installs, builds, links, and self-verifies)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ygunasekhar72-ops/noir/main/install-termux.sh | bash
+```
+
+The script installs node+git, clones/updates `~/noir`, builds, links the global `noir` command, and finishes by running **`noir selftest`** — an automated end-to-end verification of your installation (entry point incl. the global-symlink case, runtime, build artifacts, tools, shell, memory workspace, local server endpoints, web-app hosting, TUI module). Manual equivalent:
 
 ```bash
 pkg update && pkg install nodejs-lts git -y
@@ -49,7 +55,10 @@ cd ~/noir
 npm install
 npm run build
 npm link        # makes the `noir` command available everywhere
+noir selftest   # verify the install end to end (free — no tokens spent)
 ```
+
+After changing anything (`git pull`, config edits), re-run `noir selftest` — green checklist or a precise `[✗]` line telling you exactly what broke. Set `NOIR_SELFTEST_LIVE=1` to also make one real (tiny) API call through your configured provider.
 
 Then in any project:
 
