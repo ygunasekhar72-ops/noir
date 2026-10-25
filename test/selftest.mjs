@@ -28,16 +28,22 @@ export async function test() {
   assert(text.includes("selftest PASSED"), "format verdict");
   assert(text.split("\n").filter((l) => l.includes("[✓]")).length >= 8, "checklist marks rendered");
 
-  /* ---- 2. no API key: provider check skips, everything else still passes ---- */
+  /* ---- 2. no API key: provider check skips, everything else still passes ----
+     (CI sets NOIR_PROVIDER=mock globally, so we force a keyless provider
+     explicitly via configOverrides — deterministic on every platform) */
   const dir2 = tmpProject("noir-selftest-nokey");
   const { Harness } = await import("../dist/core/harness.js");
-  const h2 = await Harness.create({ projectDir: dir2, loadModules: false, connectMcp: false, configOverrides: { logging: { level: "silent" } } });
+  const h2 = await Harness.create({
+    projectDir: dir2,
+    loadModules: false,
+    connectMcp: false,
+    configOverrides: { logging: { level: "silent" }, provider: "openai", apiKey: undefined },
+  });
   await h2.modulesReady;
   const report2 = await runSelfTest(h2);
   const byName2 = Object.fromEntries(report2.results.map((r) => [r.name, r]));
   assertEq(report2.exitCode, 0, "missing API key is not a selftest failure");
-  assertEq(byName2["AI provider"].skipped, true, "provider skipped without key");
-  assert(byName2["AI provider"].detail.includes("API key") || byName2["AI provider"].detail.length > 0, "skip reason surfaced");
+  assertEq(byName2["AI provider"].skipped, true, `provider skipped without key (detail: ${byName2["AI provider"].detail})`);
   assertEq(report2.failed, 0, "rest of install still verified");
 
   /* ---- 3. webapp installed -> hosting check actually runs ---- */
